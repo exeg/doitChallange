@@ -1,0 +1,11 @@
+{
+  "name": "doitChallenge",
+  "version": "1.0.0",
+  "main": "app.js",
+  "license": "MIT",
+  "dependencies": {
+    "csv": "^5.3.1",
+    "dotenv": "^8.2.0",
+    "mongoose": "^5.9.0"
+  }
+}

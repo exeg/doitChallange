@@ -1,0 +1,6 @@
+Patient ID,Error
+15245,missing first name
+16345,missing first name
+16245,Email address is missing but consent is Y
+16245,Emails were not created
+16245,Emails schedule not correct
