@@ -1,0 +1,10 @@
+1.Defining challenge task and asking questions.
+2.Defining application architecture.
+3.Analyzing input data and database collections models.
+4.Designing parser for input flat file data.
+5.Testing parser with different data.
+6.Designing program to load flat file data into MongoDb.
+7.Testing loading data into MongoDb.
+8.Designing test framework for comparing data.
+9.Testing test framework with different data.
+10.Wrapping all up and testing whole application.

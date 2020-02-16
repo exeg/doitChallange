@@ -20,6 +20,7 @@ To start test framework
 $ node app -test FILENAME
 ```
 Results of testing are visible on your terminal and stored in CSV file errorReport.
+The steps.txt file contains the plan that was used to create this application. 
 Have a nice day.
 ## History
 1.0
