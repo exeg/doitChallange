@@ -44,8 +44,8 @@ async function loadDataToDb(data){
 	let shdate = new Date();
 	try {
 		// await Patient.deleteMany();
-  		// await Email.deleteMany();
-  		// console.log("Data deleted from Db");
+  // 		await Email.deleteMany();
+  		console.log("Data deleted from Db");
 	    await Patient.insertMany(data);
 	    const shList = await Patient.find({ con: 'Y', email: {$ne: ""}});
 
@@ -132,8 +132,8 @@ async function cmpData(input){
 
 async function readInput(filename){
 	return new Promise((resolve,reject) => {
-		let lnum = 0, curField,headerStr = '';
-		let resultArr = [], headersArr = [];
+		let curField = '',symCount = 0, pSym = '|';
+		let headersArr = [], workStr = '';
 
 		const rl = readline.createInterface({
 		  input: fs.createReadStream(filename),
@@ -141,32 +141,26 @@ async function readInput(filename){
 		});
 
 		rl.on('line', (line) => {
-			lnum++;
-			if(lnum > 3){
-				if (lnum % 2 !== 0) {
-					let input = curField + ' ' + line;
-					const records = parse(input, {
-						columns: headersArr,
-						delimiter: '|'
-					})
-					resultArr.push(records[0]);
+			curField += (line + ' ');
+
+			symCount += line.match(new RegExp('[' + pSym + ']', 'g')).length;
+			if (symCount % 15 === 0){
+				if (symCount === 15){
+					headersArr = curField.trim().split(pSym);
+					curField = '';
 				} else {
-					curField = line;
-				}
-			} else {
-				headerStr = headerStr + ' ' + line;
-				if(lnum === 3){
-					let pSym = '|';
-					headerStr = headerStr.replace(new RegExp('[' + pSym + ']', 'g'), ',').trim();
-					headersArr = headerStr.split(',')
-					// console.log(headersArr);
+					workStr += (curField.trim() + '\n');
+					curField = '';
 				}
 			}
 		})
 
 		rl.on('close', () => {
-		  // console.log(resultArr)
-		  resolve(resultArr);
+			const records = parse(workStr, {
+				columns: headersArr,
+				delimiter: '|'
+			})
+			resolve(records);
 		});
 	})
 }
