@@ -1,4 +1,6 @@
 Patient ID,Error
+16445,There is difference in Program Identifier
+16345,There is difference in Email Address
 15245,missing first name
 16345,missing first name
 16245,Email address is missing but consent is Y

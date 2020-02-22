@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const emailSchema = new mongoose.Schema({
   shedule: {
@@ -7,19 +7,19 @@ const emailSchema = new mongoose.Schema({
   },
   to: {
     type: String,
-    required: 'Please supply an address',
+    required: "Please supply an address",
     trim: true
   },
   from: {
-    type:String,
+    type: String
   },
   subject: {
-    type: String,
+    type: String
   },
   body: {
-    type: String,
+    type: String
   },
   attach: [String]
 });
 
-module.exports = mongoose.model('Email', emailSchema);
+module.exports = mongoose.model("Email", emailSchema);

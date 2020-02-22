@@ -1,192 +1,211 @@
-const fs = require('fs');
-const util = require('util');
-const readline = require('readline');
-const parse = require('csv-parse/lib/sync');
-const stringify = require('csv-stringify');
-const mongoose = require('mongoose');
+"use strict"
+const fs = require("fs");
+const util = require("util");
+const readline = require("readline");
+const parse = require("csv-parse/lib/sync");
+const stringify = require("csv-stringify");
+const mongoose = require("mongoose");
 
-process.on("unhandledRejection", function handleWarning( reason, promise ) {
+process.on("unhandledRejection", function handleWarning(reason, promise) {
   console.log("[PROCESS] Unhandled Promise Rejection");
-  console.log( reason );
+  console.log(reason);
 });
 
-require('./models/Patient');
-require('./models/Email');
-require('dotenv').config({ path: 'variables.env' });
-let emailTml = require('./data/emailTemplate').emailTemplate;
-const Patient = require('./models/Patient');
-const Email = require('./models/Email');
+require("./models/Patient");
+require("./models/Email");
+require("dotenv").config({ path: "variables.env" });
+let emailTml = require("./data/emailTemplate").emailTemplate;
+const Patient = require("./models/Patient");
+const Email = require("./models/Email");
 
+async function connectDB() {
+  mongoose.connection.on("connected", () => {
+    console.log("MONGOOSE CONNECTED!!");
+  });
 
-async function connectDB(){
-	mongoose.connection.on('connected', () => {
-	  console.log(`MONGOOSE CONNECTED!!`);
-	});
+  mongoose.connection.on("error", err => {
+    console.error(`MongoDB error → ${err.message}`);
+    process.exit(1);
+  });
 
-	mongoose.connection.on('error', (err) => {
-	  console.error(`MongoDB error → ${err.message}`);
-	  process.exit();
-	});
-
-	// Connect to our Database and handle an bad connections
-	await mongoose.connect(process.env.DATABASE, {
-  		useNewUrlParser: true,
-  		useUnifiedTopology: true
-	}).catch( err => console.log(err));
+  // Connect to our Database and handle an bad connections
+  await mongoose
+    .connect(process.env.DATABASE, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    })
+    .catch(err => console.log(err));
 }
 
-async function loadDataToDb(data){
-	Date.prototype.addDays = function(days) {
-	    let date = new Date(this.valueOf());
-	    date.setDate(date.getDate() + days);
-	    return date;
-	}
-	let shdate = new Date();
-	try {
-		// await Patient.deleteMany();
-  // 		await Email.deleteMany();
-  		console.log("Data deleted from Db");
-	    await Patient.insertMany(data);
-	    const shList = await Patient.find({ con: 'Y', email: {$ne: ""}});
+async function loadDataToDb(data) {
+  Date.prototype.addDays = function(days) {
+    let date = new Date(this.valueOf());
+    date.setDate(date.getDate() + days);
+    return date;
+  };
+  let shdate = new Date();
+  try {
+    // await Patient.deleteMany();
+    // 		await Email.deleteMany();
+    console.log("Data deleted from Db");
+    await Patient.insertMany(data);
+    const shList = await Patient.find({ con: "Y", email: { $ne: "" } });
 
-	    //create schedule
-	    for (let shPat of shList){
-	    	for (let i = 0;i < emailTml.length; i++){
-		    	let etmpl = emailTml[i];
-		    	etmpl.shedule = shdate.addDays(i);
-		    	etmpl.to = shPat.email;
-		    	const newEmail = new Email(etmpl);
-		    	await newEmail.save();
-		    	shPat.emails.push(newEmail._id);
-		    }
-		    await shPat.save();
-	    }
-	    console.log("Data saved to Db");
-	    // return;
-	    process.exit();
-	  } catch(e) {
-	    console.log("Some problems with database");
-	    console.log(e);
-	    process.exit();
-	  }
+    // create schedule
+    for (let shPat of shList) {
+      for (let i = 0; i < emailTml.length; i++) {
+        let etmpl = emailTml[i];
+        etmpl.shedule = shdate.addDays(i);
+        etmpl.to = shPat.email;
+        const newEmail = new Email(etmpl);
+        await newEmail.save();
+        shPat.emails.push(newEmail._id);
+      }
+      await shPat.save();
+    }
+    console.log("Data saved to Db");
+    // return;
+    process.exit(1);
+  } catch (e) {
+    console.log("Some problems with database");
+    console.log(e);
+    process.exit(1);
+  }
 }
 
-async function cmpData(input){
-	let errorsArr = [];
-	const dbPatients = await Patient.find();
-	for (let ipat of input){
-		const imid = ipat['Member ID'];
-		const dbpat = dbPatients.filter(el => el.mid === imid)[0];
-		const dbpat2 = dbpat.toObject({ virtuals: true });
-		for (const property in ipat) {
-		  if(ipat[property] != dbpat2[property]){
-		  	console.log(`There is difference in ${property} of user ${imid}`);
-		  	let error = {'Patient ID': imid, Error: `There is difference in ${property}`};
-		  	errorsArr.push(error);
-		  }
-		}
-	}
-	const fnameCmp =  dbPatients.filter(el => el.fname === '');
-	if (fnameCmp.length > 0) {
-		for (let fpat of fnameCmp){
-			console.log(`Patient Id ${fpat.mid} missing first name`);
-			let error = {'Patient ID': fpat.mid, Error: 'missing first name'};
-		  	errorsArr.push(error);
-		}
-	}
-	let emailCmp = dbPatients.filter(el => el.email === '').filter(el => el.con == 'Y');
-	if (emailCmp.length > 0) {
-		for (let fpat of emailCmp){
-			console.log(`Patient Id ${fpat.mid} Email address is missing but consent is Y`);
-			let error = {'Patient ID': fpat.mid, Error: 'Email address is missing but consent is Y'};
-		  	errorsArr.push(error);
+async function cmpData(input) {
+  let errorsArr = [];
+  const dbPatients = await Patient.find();
+  for (let ipat of input) {
+    const imid = ipat["Member ID"];
+    const dbpat = dbPatients.filter(el => el.mid === imid)[0];
+    const dbpat2 = dbpat.toObject({ virtuals: true });
+    for (const property in ipat) {
+      if (ipat[property] !== dbpat2[property]) {
+        console.log(`There is difference in ${property} of user ${imid}`);
+        let error = {
+          "Patient ID": imid,
+          Error: `There is difference in ${property}`
+        };
+        errorsArr.push(error);
+      }
+    }
+  }
+  const fnameCmp = dbPatients.filter(el => el.fname === "");
+  if (fnameCmp.length > 0) {
+    for (let fpat of fnameCmp) {
+      console.log(`Patient Id ${fpat.mid} missing first name`);
+      let error = { "Patient ID": fpat.mid, Error: "missing first name" };
+      errorsArr.push(error);
+    }
+  }
+  let emailCmp = dbPatients
+    .filter(el => el.email === "")
+    .filter(el => el.con === "Y");
+  if (emailCmp.length > 0) {
+    for (let fpat of emailCmp) {
+      console.log(
+        `Patient Id ${fpat.mid} Email address is missing but consent is Y`
+      );
+      let error = {
+        "Patient ID": fpat.mid,
+        Error: "Email address is missing but consent is Y"
+      };
+      errorsArr.push(error);
+    }
+  }
+  const emailPatients = dbPatients.filter(el => el.con === "Y");
+  if (emailPatients.length > 0) {
+    for (let fpat of emailPatients) {
+      if (!fpat.emails.length > 0) {
+        console.log(`Patient Id ${fpat.mid} Emails were not created`);
+        let error = {
+          "Patient ID": fpat.mid,
+          Error: "Emails were not created"
+        };
+        errorsArr.push(error);
+      }
+      if (fpat.email.length < 4) {
+        console.log(`Patient Id ${fpat.mid} Emails schedule not correct`);
+        let error = {
+          "Patient ID": fpat.mid,
+          Error: "Emails schedule not correct"
+        };
+        errorsArr.push(error);
+      }
+    }
+  }
+  const stringifyPromise = util.promisify(stringify);
+  const data = await stringifyPromise(errorsArr, {
+    header: true,
+    columns: ["Patient ID", "Error"]
+  });
+  fs.writeFile("errorReport.csv", data, err => {
+    if (err) throw err;
+    console.log("The file has been saved!");
+    process.exit(1);
+  });
 
-		}
-	}
-	const emailPatients = dbPatients.filter(el => el.con == 'Y');
-	if (emailPatients.length > 0) {
-		for (let fpat of emailPatients){
-			if(!fpat.emails.length > 0){
-				console.log(`Patient Id ${fpat.mid} Emails were not created`);
-				let error = {'Patient ID': fpat.mid, Error: 'Emails were not created'};
-		  		errorsArr.push(error);
-			}
-			if(fpat.email.length < 4){
-				console.log(`Patient Id ${fpat.mid} Emails schedule not correct`);
-				let error = {'Patient ID': fpat.mid, Error: 'Emails schedule not correct'};
-		  		errorsArr.push(error);
-			}
-		}
-	}
-	const stringifyPromise = util.promisify(stringify);
-	const data = await stringifyPromise(errorsArr,{ header: true, columns: ['Patient ID', 'Error']});
-	fs.writeFile('errorReport.csv', data, (err) => {
-	  if (err) throw err;
-	  console.log('The file has been saved!');
-	  process.exit();
-	})
-
-	// console.log(data);
-	
+  // console.log(data);
 }
 
-async function readInput(filename){
-	return new Promise((resolve,reject) => {
-		let curField = '',symCount = 0, pSym = '|';
-		let headersArr = [], workStr = '';
+async function readInput(filename) {
+  return new Promise((resolve, reject) => {
+    let curField = "";
+    let symCount = 0;
+    let pSym = "|";
+    let headersArr = [];
+    let workStr = "";
 
-		const rl = readline.createInterface({
-		  input: fs.createReadStream(filename),
-		  crlfDelay: Infinity
-		});
+    const rl = readline.createInterface({
+      input: fs.createReadStream(filename),
+      crlfDelay: Infinity
+    });
 
-		rl.on('line', (line) => {
-			curField += (line + ' ');
+    rl.on("line", line => {
+      curField += line + " ";
 
-			symCount += line.match(new RegExp('[' + pSym + ']', 'g')).length;
-			if (symCount % 15 === 0){
-				if (symCount === 15){
-					headersArr = curField.trim().split(pSym);
-					curField = '';
-				} else {
-					workStr += (curField.trim() + '\n');
-					curField = '';
-				}
-			}
-		})
+      symCount += line.match(new RegExp("[" + pSym + "]", "g")).length;
+      if (symCount % 15 === 0) {
+        if (symCount === 15) {
+          headersArr = curField.trim().split(pSym);
+          curField = "";
+        } else {
+          workStr += curField.trim() + "\n";
+          curField = "";
+        }
+      }
+    });
 
-		rl.on('close', () => {
-			const records = parse(workStr, {
-				columns: headersArr,
-				delimiter: '|'
-			})
-			resolve(records);
-		});
-	})
+    rl.on("close", () => {
+      const records = parse(workStr, {
+        columns: headersArr,
+        delimiter: "|"
+      });
+      resolve(records);
+    });
+  });
 }
 
-async function startShow(){
-	try{
-		await connectDB();
-		if(process.argv[3]){
-			if(process.argv[2] != '-load' && process.argv[2] != '-test'){
-				console.log("Please specify -load or -test key");
-				process.exit();
-			}
-			const input = await readInput(process.argv[3]);
-			if(process.argv[2] == '-load')
-				await loadDataToDb(input);
-			if(process.argv[2] == '-test')
-				await cmpData(input);
-			
-		} else {
-			console.log("Please use node index -load or -test FILENAME")
-			process.exit();
-		}
-	} catch (e){
-		console.log("MAIN MODULE ERROR")
-		console.log(e)
-	}
+async function startShow() {
+  try {
+    await connectDB();
+    if (process.argv[3]) {
+      if (process.argv[2] !== "-load" && process.argv[2] !== "-test") {
+        console.log("Please specify -load or -test key");
+        process.exit(1);
+      }
+      const input = await readInput(process.argv[3]);
+      if (process.argv[2] === "-load") await loadDataToDb(input);
+      if (process.argv[2] === "-test") await cmpData(input);
+    } else {
+      console.log("Please use node app -load or -test FILENAME");
+      process.exit(1);
+    }
+  } catch (e) {
+    console.log("MAIN MODULE ERROR");
+    console.log(e);
+  }
 }
 
 startShow();
